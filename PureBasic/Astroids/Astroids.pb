@@ -74,8 +74,6 @@ Structure Player Extends GameObject
   Life.f
   RotateSpeed.f
   Acceleration.f
-  IsBulletTouched.b
-  IsHitted.b
 EndStructure
 
 Structure Bullet Extends GameObject
@@ -312,6 +310,7 @@ Procedure.b IsBulletTouchPlayer(*bullet.Bullet)
       isTouchedOnAxisY = #True
     EndIf
     
+    
     If isTouchedOnAxisX = #True And isTouchedOnAxisY = #True
       ProcedureReturn #True
     Else
@@ -332,20 +331,16 @@ Procedure HandleBullet()
     
     CalculatePosition(currentBullet\Position, currentBullet\Movement, currentBullet\MovementSpeed)
     
+    If IsBulletTouchPlayer(currentBullet)
+      currentBullet\Life = 0
+      _Player1\Life = _Player1\Life - currentBullet\Demage
+    EndIf
+      
     If currentBullet\Life > 0
       BulletsOnScreen() = currentBullet
     Else
       DeleteElement(BulletsOnScreen())
-    EndIf
-    
-    _Player1\IsBulletTouched = IsBulletTouchPlayer(currentBullet)
-
-    If _Player1\IsBulletTouched = #True And _Player1\IsHitted = #False
-      _Player1\Life = _Player1\Life - currentBullet\Demage
-      _Player1\IsHitted = #True
-    ElseIf _Player1\IsBulletTouched = #False And _Player1\IsHitted = #True
-      _Player1\IsHitted = #False
-    EndIf
+    EndIf    
   Next
 EndProcedure
 
@@ -396,3 +391,8 @@ Repeat
   HandleWindowEvent()
   HandleFlow()
 ForEver
+; IDE Options = PureBasic 5.72 (Windows - x64)
+; CursorPosition = 392
+; FirstLine = 276
+; Folding = ---
+; EnableXP
