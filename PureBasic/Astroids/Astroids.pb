@@ -410,6 +410,7 @@ Procedure HandleAstroids()
     CalculatePosition(currentAstroid\Position, currentAstroid\Movement, 3, 100)
 
     DisplaySprite(#SRT_ASTROID_BIG_1_ID, currentAstroid\Position\X, currentAstroid\Position\Y)
+    RotateSprite(#SRT_ASTROID_BIG_1_ID, currentAstroid\RotationAngle, #PB_Absolute)
     
     If IsGameObjectTouchPlayer(currentAstroid)
       _Player1\Life = _Player1\Life - currentAstroid\Demage
@@ -472,7 +473,8 @@ Repeat
   HandleFlow()
 ForEver
 ; IDE Options = PureBasic 5.72 (Windows - x64)
-; CursorPosition = 384
-; FirstLine = 314
+; CursorPosition = 381
+; FirstLine = 357
 ; Folding = ---
 ; EnableXP
+; Executable = Astroids.exe
