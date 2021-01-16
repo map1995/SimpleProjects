@@ -68,6 +68,7 @@ Structure Vector2D
 EndStructure
 
 Structure GameObject
+  Id.i
   Size.Vector2D
   Position.Vector2D
   Movement.Vector2D
@@ -88,6 +89,7 @@ Structure Bullet Extends GameObject
 EndStructure
 
 Structure Astroid Extends GameObject
+  Life.f
   Demage.i
 EndStructure
 
@@ -98,6 +100,7 @@ Global _Player1.Player
 Global _CurrentFlow
 Global NewList BulletsOnScreen.Bullet()
 Global NewList AstroidsOnScreen.Astroid()
+Global _IdCounter.i = 0
 
 ; ### METHODS #################################################################################################################
 
@@ -201,6 +204,12 @@ Procedure HandleWindowEvent()
   Until _CurrentWindowEvent = #WINDOW_EVENT_NULL
 EndProcedure
 
+Procedure.i GetId()
+  _IdCounter = _IdCounter + 1
+
+  ProcedureReturn _IdCounter
+EndProcedure
+
 ; --- InitGameObjects ---------------------------------------------------------------------------------------------------------
 ; Instantiate all game objects for this game.
 Procedure InitGameObjects()
@@ -215,6 +224,7 @@ Procedure InitGameObjects()
   movementPlayer1\Y = 1
   
   player1.Player
+  player1\Id = GetId()
   player1\Life = #PLY_LIFE_POINTS
   player1\Position = positionPlayer1
   player1\Movement = movementPlayer1
@@ -236,6 +246,7 @@ Procedure InitGameObjects()
     EndIf
     
     tempAstroid.Astroid
+    tempAstroid\Id = GetId()
     tempAstroid\Position\X = Random(924, 100)
     tempAstroid\Position\Y = Random(678, 100)
     tempAstroid\RotationAngle = Random(360,0)
@@ -244,6 +255,7 @@ Procedure InitGameObjects()
     tempAstroid\Size\X = #SRT_ASTROID_BIG_1_WIDTH
     tempAstroid\Size\Y = #SRT_ASTROID_BIG_1_HEIGHT
     tempAstroid\Demage = 2
+    tempAstroid\Life = 3
     
     AddElement(AstroidsOnScreen())
     AstroidsOnScreen() = tempAstroid
@@ -325,8 +337,13 @@ Procedure HandlePlayer()
     EndIf
     
     If KeyboardReleased(#PB_Key_X)  ; shooting some bullets
+      bulletPosition.Vector2D
+      bulletPosition\X = _Player1\Position\X + (_Player1\Movement\X * 20)
+      bulletPosition\Y = _Player1\Position\Y + (_Player1\Movement\Y * 20)
+
       bullet.Bullet
-      bullet\Position = _Player1\Position
+      bullet\Id = GetId()
+      bullet\Position = bulletPosition
       bullet\RotationAngle = _Player1\RotationAngle
       bullet\OriginPlayer = _Player1
       bullet\Movement = _Player1\Movement
@@ -352,18 +369,16 @@ Procedure HandlePlayer()
   EndIf
 EndProcedure
 
-; --- IsGameObjectTouchPlayer -----------------------------------------------------------------------------------------------------
-; Return #True or #False value as byte if a GameObject touch the player.
-; *gameObject.Bullet - The bullet to check collision with player
-Procedure.b IsGameObjectTouchPlayer(*gameObject.GameObject)
+
+Procedure.b IsGameObjectCollide(*gameObject1.GameObject, *gameObject2.GameObject)
     isTouchedOnAxisX.b = #False
     isTouchedOnAxisY.b = #False
     
-    If _Player1\Position\X >= *gameObject\Position\X And _Player1\Position\X <= *gameObject\Position\X + *gameObject\Size\X
+    If *gameObject1\Position\X >= *gameObject2\Position\X And *gameObject1\Position\X <= *gameObject2\Position\X + *gameObject2\Size\X
       isTouchedOnAxisX = #True
     EndIf
     
-    If _Player1\Position\Y >= *gameObject\Position\Y And _Player1\Position\Y <= *gameObject\Position\Y + *gameObject\Size\Y
+    If *gameObject1\Position\Y >= *gameObject2\Position\Y And *gameObject1\Position\Y <= *gameObject2\Position\Y + *gameObject2\Size\Y
       isTouchedOnAxisY = #True
     EndIf
     
@@ -374,13 +389,19 @@ Procedure.b IsGameObjectTouchPlayer(*gameObject.GameObject)
     EndIf
 EndProcedure
 
+; --- IsGameObjectTouchPlayer -----------------------------------------------------------------------------------------------------
+; Return #True or #False value as byte if a GameObject touch the player.
+; *gameObject.Bullet - The bullet to check collision with player
+Procedure.b IsGameObjectTouchPlayer(*gameObject.GameObject)
+    ProcedureReturn IsGameObjectCollide(_Player1, *gameObject)
+EndProcedure
+
 ; --- HandleBullet ------------------------------------------------------------------------------------------------------------
 ; Process handle all bullets actions like movement, rotation and etc.
 ; Delete bullet form List, if life points is under 0.
 Procedure HandleBullet()
   ForEach BulletsOnScreen()
     currentBullet.Bullet = BulletsOnScreen()
-    currentBullet\Life = currentBullet\Life - #BLT_LOOSING_LIFE_PER_LOOP_STEP
     
     DisplaySprite(#SRT_BULLET_ID, currentBullet\Position\X, currentBullet\Position\Y)
     RotateSprite(#SRT_BULLET_ID, currentBullet\RotationAngle, #PB_Absolute)
@@ -389,15 +410,40 @@ Procedure HandleBullet()
     
     If IsGameObjectTouchPlayer(currentBullet)
       currentBullet\Life = 0
+
       _Player1\Life = _Player1\Life - currentBullet\Demage
     EndIf
       
     If currentBullet\Life > 0
+      currentBullet\Life = currentBullet\Life - #BLT_LOOSING_LIFE_PER_LOOP_STEP
+      
       BulletsOnScreen() = currentBullet
     Else
       DeleteElement(BulletsOnScreen())
     EndIf    
   Next
+EndProcedure
+
+
+; --- HandleAstroidHittedByBullet ---------------------------------------------------------------------------------------------
+; Set the life of Bullet and Astroid to zero if gameObject collide each other.
+Procedure.b HandleAstroidHittedByBullet(*currentAstroid.Astroid)
+  isCollide = #False
+  ForEach BulletsOnScreen()
+    currentBullet.Bullet = BulletsOnScreen()
+    
+    If IsGameObjectCollide(currentBullet, *currentAstroid)
+      isCollide = #True
+      
+      *currentAstroid\life = 0
+      currentBullet\life = 0
+      
+      BulletsOnScreen() = currentBullet
+      Break
+    EndIf
+  Next
+  
+  ProcedureReturn isCollide
 EndProcedure
 
 ; --- HandleAstroids ----------------------------------------------------------------------------------------------------------
@@ -412,8 +458,14 @@ Procedure HandleAstroids()
     DisplaySprite(#SRT_ASTROID_BIG_1_ID, currentAstroid\Position\X, currentAstroid\Position\Y)
     RotateSprite(#SRT_ASTROID_BIG_1_ID, currentAstroid\RotationAngle, #PB_Absolute)
     
+    HandleAstroidHittedByBullet(currentAstroid)
+
     If IsGameObjectTouchPlayer(currentAstroid)
       _Player1\Life = _Player1\Life - currentAstroid\Demage
+      currentAstroid\Life = currentAstroid\Life - 1
+    EndIf
+    
+    If currentAstroid\Life < 1
       DeleteElement(AstroidsOnScreen())
     Else
       AstroidsOnScreen() = currentAstroid
@@ -473,8 +525,8 @@ Repeat
   HandleFlow()
 ForEver
 ; IDE Options = PureBasic 5.72 (Windows - x64)
-; CursorPosition = 381
-; FirstLine = 357
-; Folding = ---
+; CursorPosition = 446
+; FirstLine = 415
+; Folding = ----
 ; EnableXP
 ; Executable = Astroids.exe
